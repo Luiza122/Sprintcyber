@@ -10,45 +10,73 @@ permissions:
   contents: read
   security-events: write
 
+env:
+  JAVA_VERSION: '17'
+  IMAGE_NAME: fordretain-api:ci
+
 jobs:
   build-and-test:
-    name: Build e Testes
+    name: Build, Testes e SBOM
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configurar Java
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: ${{ env.JAVA_VERSION }}
           cache: maven
-      - name: Compilar e rodar testes
+
+      - name: Compilar, testar e gerar SBOM CycloneDX
         run: mvn -B clean verify
+
+      - name: Publicar SBOM como evidência
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fordretain-sbom-cyclonedx
+          path: target/bom.json
+          if-no-files-found: warn
+          retention-days: 30
 
   sast:
     name: SAST - CodeQL
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configurar Java
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: ${{ env.JAVA_VERSION }}
           cache: maven
+
       - name: Inicializar CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: java
           build-mode: manual
+
       - name: Build para análise SAST
         run: mvn -B clean compile -DskipTests
+
       - name: Analisar código
         uses: github/codeql-action/analyze@v3
 
   sca:
     name: SCA - Trivy FS + Dependabot
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v5
+
       - name: Relatório de dependências HIGH/CRITICAL
         uses: aquasecurity/trivy-action@0.35.0
         with:
@@ -59,6 +87,7 @@ jobs:
           ignore-unfixed: true
           format: table
           exit-code: '0'
+
       - name: Security gate - bloquear vulnerabilidade CRITICAL
         uses: aquasecurity/trivy-action@0.35.0
         with:
@@ -73,35 +102,69 @@ jobs:
   secret-scanning:
     name: Secret Scanning - Gitleaks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout com histórico
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
       - name: Rodar Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  iac-security:
+    name: IaC Security - Trivy Config
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Relatório IaC HIGH/CRITICAL
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          format: table
+          exit-code: '0'
+
+      - name: Security gate IaC - bloquear CRITICAL
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: CRITICAL
+          format: table
+          exit-code: '1'
+
   container-security:
     name: Container Security - Trivy
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: build-and-test
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v5
+
       - name: Build da imagem Docker
-        run: docker build -t fordretain-api:ci .
+        run: docker build --pull -t $IMAGE_NAME .
+
       - name: Relatório da imagem HIGH/CRITICAL
         uses: aquasecurity/trivy-action@0.35.0
         with:
-          image-ref: fordretain-api:ci
+          image-ref: ${{ env.IMAGE_NAME }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           format: table
           exit-code: '0'
+
       - name: Security gate - bloquear CRITICAL na imagem
         uses: aquasecurity/trivy-action@0.35.0
         with:
-          image-ref: fordretain-api:ci
+          image-ref: ${{ env.IMAGE_NAME }}
           severity: CRITICAL
           ignore-unfixed: true
           format: table
@@ -110,7 +173,9 @@ jobs:
   security-gate:
     name: Gate final para deploy
     runs-on: ubuntu-latest
-    needs: [build-and-test, sast, sca, secret-scanning, container-security]
+    needs: [build-and-test, sast, sca, secret-scanning, iac-security, container-security]
     steps:
       - name: Aprovar artefato para deploy
-        run: echo "Todos os gates de segurança passaram. Artefato aprovado para o estágio de deploy."
+        run: |
+          echo "Build/testes, SAST, SCA, secret scanning, IaC e container security concluídos."
+          echo "Artefato aprovado para o estágio de deploy."
