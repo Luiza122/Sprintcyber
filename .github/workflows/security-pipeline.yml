@@ -78,7 +78,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Relatório de dependências HIGH/CRITICAL
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -89,7 +89,7 @@ jobs:
           exit-code: '0'
 
       - name: Security gate - bloquear vulnerabilidade CRITICAL
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -123,7 +123,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Relatório IaC HIGH/CRITICAL
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: .
@@ -132,7 +132,7 @@ jobs:
           exit-code: '0'
 
       - name: Security gate IaC - bloquear CRITICAL
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: .
@@ -153,7 +153,7 @@ jobs:
         run: docker build --pull -t $IMAGE_NAME .
 
       - name: Relatório da imagem HIGH/CRITICAL
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.IMAGE_NAME }}
           severity: HIGH,CRITICAL
@@ -162,7 +162,7 @@ jobs:
           exit-code: '0'
 
       - name: Security gate - bloquear CRITICAL na imagem
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.IMAGE_NAME }}
           severity: CRITICAL
