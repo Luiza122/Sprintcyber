@@ -14,7 +14,7 @@ RUN mvn -B clean package -DskipTests
 # ---------- Runtime stage ----------
 # Imagem mínima: somente JRE. O apk upgrade aplica correções de segurança
 # disponíveis para bibliotecas do Alpine (ex.: OpenSSL) antes da execução.
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 USER root
 RUN apk upgrade --no-cache \
     && addgroup -S -g 1001 spring \
