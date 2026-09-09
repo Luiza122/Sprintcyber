@@ -58,7 +58,7 @@ jobs:
           cache: maven
 
       - name: Inicializar CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: java
           build-mode: manual
@@ -67,7 +67,7 @@ jobs:
         run: mvn -B clean compile -DskipTests
 
       - name: Analisar código
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
 
   sca:
     name: SCA - Trivy FS + Dependabot
