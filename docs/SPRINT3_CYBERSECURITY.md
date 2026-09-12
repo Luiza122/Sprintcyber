@@ -19,24 +19,29 @@
 
 A Sprint 3 evolui a segurança do FordRetain para um modelo **DevSecOps**, em que controles de segurança deixam de existir apenas como documentação e passam a fazer parte do ciclo de desenvolvimento, build, análise, empacotamento e aprovação para deploy.
 
+O projeto completo envolve API, dados, aplicativo mobile e modelos de machine learning. Este repositório implementa e comprova a camada da API Java, do pipeline, do container, do Kubernetes e da observabilidade. Os controles para mobile, IoT e ML são registrados como requisitos de integração, sem serem apresentados como código executável inexistente.
+
+Ativos críticos considerados na análise:
+
+| Ativo | Risco principal | Proteção prevista |
+|---|---|---|
+| contas e perfis de usuários | roubo de credenciais e elevação de privilégio | BCrypt, JWT, RBAC, rate limit e auditoria |
+| dados de clientes e contato | exposição ou alteração indevida | minimização, AES-GCM, controle de acesso e LGPD |
+| dados e resultados de predição | manipulação, acesso indevido ou perda de integridade | validação, autorização, versionamento e monitoramento |
+| API e dashboard | abuso, indisponibilidade e configuração insegura | CORS, rate limit, alertas, limites de recursos e security gate |
+| dependências e imagem de container | CVEs e componentes desconhecidos | SCA, Dependabot, SBOM e Trivy Image |
+| segredos e credenciais técnicas | vazamento em código ou pipeline | variáveis externas, Gitleaks e referências Kubernetes Secret |
+
 Fluxo implantado:
 
-```text
-Commit / Pull Request
-        |
-        +--> Build + Testes + SBOM CycloneDX
-        +--> SAST / CodeQL
-        +--> SCA / Trivy FS + Dependabot
-        +--> Secret Scanning / Gitleaks
-        +--> IaC Security / Trivy Config
-        +--> Docker Build + Trivy Image
-                         |
-                         v
-                  Security Gate
-                         |
-                aprovado / bloqueado
-                         |
-                     Deploy
+```mermaid
+flowchart TD
+    A[Commit ou Pull Request] --> B[Build Testes e SBOM]
+    B --> C[SAST SCA e Secret Scanning]
+    C --> D[IaC e Container Security]
+    D --> E{Security Gate}
+    E -->|Aprovado| F[Estágio de deploy]
+    E -->|Falha crítica| G[Deploy bloqueado]
 ```
 
 A execução real da **PR #18**, workflow **Security Pipeline**, run **20**, validou com sucesso todos os jobs obrigatórios: Build/Testes/SBOM, SAST/CodeQL, SCA/Trivy, Gitleaks, IaC/Trivy, Container/Trivy e Gate final para deploy.
@@ -269,7 +274,28 @@ Além da revisão manual, o manifesto e o Dockerfile passam pelo job **IaC Secur
 
 **Não aplicável ao código executável deste repositório.** O módulo versionado aqui é a API FordRetain e não possui broker MQTT, firmware ou cliente IoT.
 
-Não foi criada uma falsa evidência de MQTT/TLS. Se um módulo IoT for integrado, o requisito deverá incluir transporte TLS, autenticação do dispositivo, gestão/rotação de certificados e autorização por tópico.
+Não foi criada uma falsa evidência de MQTT/TLS. Se um módulo IoT ou telemático for integrado, o requisito deverá incluir:
+
+- MQTT sobre TLS 1.2 ou superior;
+- autenticação mútua por certificado quando suportada;
+- identidade única por dispositivo;
+- autorização por tópico com menor privilégio;
+- rotação e revogação de certificados;
+- assinatura ou validação de integridade da telemetria;
+- inventário, firmware assinado e atualização segura;
+- isolamento do dispositivo quando houver comportamento anômalo.
+
+Esses controles permanecem como critérios de aceite do futuro módulo IoT.
+
+## 2.11 Testes automatizados de segurança
+
+O build executa testes que verificam login válido, credencial inválida, validação de entrada, ausência de token, token inválido, separação de perfis, coleta Prometheus e rate limiting. O teste de RBAC comprova que `ANALISTA` recebe HTTP 403 na rota administrativa de métricas, enquanto `ADMIN` recebe HTTP 200.
+
+Evidências:
+
+- `src/test/java/com/ford/fordretain/AuthControllerIntegrationTest.java`;
+- `src/test/java/com/ford/fordretain/security/RateLimitFilterTest.java`;
+- `evidencias/20-maven-test-build-success.png`.
 
 ## Evidências desta atividade
 
@@ -334,6 +360,8 @@ Evidência: `src/main/java/com/ford/fordretain/security/SecurityMetrics.java`.
 ## 3.3 Prometheus
 
 A configuração em `monitoring/prometheus/` inclui scrape da API e regras de alertas.
+
+O endpoint `/actuator/prometheus` é liberado para o coletor local sem depender de um JWT de curta duração. Os demais endpoints do Actuator permanecem restritos a `ADMIN`. Em produção, a rota de scrape deve ser limitada à rede interna, a um ServiceMonitor ou a uma política de rede equivalente.
 
 Eventos relevantes para alerta:
 
@@ -549,6 +577,47 @@ O repositório não contém a infraestrutura real do banco Oracle de produção,
 
 A evidência final deve vir do ambiente que hospeda o banco, caso esteja disponível para o projeto.
 
+## 4.8 ISO 27001 e NIST Cybersecurity Framework
+
+O projeto usa a ISO 27001 como referência para gestão de ativos, riscos, acesso, incidentes e melhoria contínua. Isso representa alinhamento de controles, não certificação formal.
+
+O ciclo operacional também foi mapeado às funções do NIST Cybersecurity Framework:
+
+| Função | Aplicação no FordRetain |
+|---|---|
+| Govern | responsabilidades, políticas, LGPD e critérios de risco |
+| Identify | inventário de ativos, SBOM e análise STRIDE |
+| Protect | JWT, RBAC, criptografia, validação, hardening e backups |
+| Detect | CodeQL, Trivy, Gitleaks, logs, métricas e alertas |
+| Respond | análise, contenção, erradicação e comunicação |
+| Recover | restauração, validação de integridade e lições aprendidas |
+
+## 4.9 Continuidade e metas de recuperação
+
+Para um ambiente produtivo, o plano estabelece como referência inicial:
+
+- backup incremental diário e completo semanal;
+- cópia criptografada e separada do ambiente principal;
+- retenção mínima de 90 dias, sujeita à política e à base legal;
+- teste periódico de restauração;
+- RTO de até 4 horas;
+- RPO de até 1 hora.
+
+RTO e RPO devem ser aprovados pelo responsável de negócio e validados por testes reais. Eles são objetivos operacionais, não evidências já executadas pelo repositório.
+
+## 4.10 Red Team e Blue Team
+
+| Cenário | Validação ofensiva controlada | Defesa e resposta |
+|---|---|---|
+| roubo de credencial | tentativas inválidas em ambiente de teste | BCrypt, rate limit, logs, alerta e revogação |
+| elevação de privilégio | acesso de ANALISTA a rota de ADMIN | RBAC, HTTP 403, auditoria e revisão de perfis |
+| manipulação de payload | entradas inválidas e limites de tamanho | Bean Validation, rejeição HTTP 400 e logs |
+| dependência vulnerável | SCA e scan de imagem | Dependabot, atualização e bloqueio no gate |
+| segredo versionado | secret scanning no histórico | Gitleaks, rotação e remoção do segredo |
+| indisponibilidade | carga controlada e excesso de requisições | rate limit, limites de recursos, alertas e recuperação |
+
+Os testes devem ocorrer apenas em ambiente autorizado e isolado. Os achados alimentam o backlog defensivo, a revisão STRIDE e os critérios do pipeline.
+
 ---
 
 # Checklist final de conformidade
@@ -585,6 +654,8 @@ A evidência final deve vir do ambiente que hospeda o banco, caso esteja dispon�
 - [x] secrets Kubernetes por referência
 - [x] análise IaC automatizada
 - [x] MQTT/TLS classificado corretamente como não aplicável ao módulo atual
+- [x] perfil local com H2 sem dependência do Oracle
+- [x] testes automatizados de login, validação, JWT, RBAC e rate limiting
 
 ## Observabilidade e resposta
 
@@ -610,32 +681,38 @@ A evidência final deve vir do ambiente que hospeda o banco, caso esteja dispon�
 - [x] rotina de testes de segurança
 - [x] rotina de auditoria de permissões
 - [x] plano operacional de backup/recuperação
+- [x] mapeamento ISO 27001 e NIST CSF
+- [x] objetivos iniciais de RTO e RPO
+- [x] cenários de Red Team e Blue Team
 
 ---
 
-# Evidências finais a anexar
+# Evidências finais
 
-A entrega técnica está implementada no repositório. Para completar a parte visual pedida pela rubrica, os únicos itens que não podem ser fabricados são os prints de execução.
+A entrega técnica está implementada no repositório. A pasta `evidencias/` já contém prints reais de build/testes, login ADMIN e GERENTE, emissão de JWT e validação HTTP 400. Os demais itens visuais não podem ser fabricados e devem vir da execução do ambiente.
 
 O roteiro de captura está em:
 
 `evidencias/README.md`
 
-Prioridade de prints:
+Evidências já incluídas:
 
-1. Pipeline geral da PR #18 / run 20.
-2. Build/Testes/SBOM.
-3. CodeQL.
-4. Trivy SCA.
-5. Gitleaks.
-6. Trivy IaC.
-7. Trivy Container.
-8. Gate final para deploy.
-9. Grafana.
-10. Prometheus.
-11. Log JSON real.
-12. Teste RBAC com 403.
-13. Teste de rate limit com 429.
+1. Estrutura do projeto.
+2. Build e testes com `BUILD SUCCESS`.
+3. Login ADMIN com HTTP 200.
+4. Login GERENTE com HTTP 200.
+5. Validação de entrada com HTTP 400.
+
+Prioridade dos próximos prints:
+
+1. Pipeline geral da execução mais recente da `main`.
+2. Artefato SBOM CycloneDX.
+3. CodeQL, Trivy SCA, Gitleaks, Trivy IaC e Trivy Container.
+4. Gate final para deploy.
+5. Grafana e Prometheus.
+6. Log JSON real.
+7. Teste RBAC com 403.
+8. Teste de rate limit com 429.
 
 Nenhuma evidência deve exibir credenciais, JWT completo, secrets ou dados pessoais reais.
 

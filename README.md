@@ -4,6 +4,8 @@ Implementação da **Sprint 3 de Cybersecurity** do Ford Challenge, evoluindo a 
 
 > Documento principal da entrega: [`docs/SPRINT3_CYBERSECURITY.md`](docs/SPRINT3_CYBERSECURITY.md)
 
+> Resumo executivo e evidências locais: [`docs/RELATORIO_FINAL_SPRINT3.md`](docs/RELATORIO_FINAL_SPRINT3.md)
+
 ## 1. O que esta entrega cobre
 
 | Rubrica | Implementação / evidência no repositório |
@@ -44,9 +46,12 @@ flowchart LR
 │   ├── dependabot.yml
 │   └── workflows/security-pipeline.yml
 ├── docs/
+│   ├── assets/rubrica-sprint3-cybersecurity.jpg
+│   ├── RELATORIO_FINAL_SPRINT3.md
 │   └── SPRINT3_CYBERSECURITY.md
 ├── evidencias/
-│   └── README.md
+│   ├── README.md
+│   └── *.png
 ├── k8s/
 │   └── fordretain-api.yaml
 ├── monitoring/
@@ -58,6 +63,7 @@ flowchart LR
 │   ├── dto/
 │   └── security/
 ├── src/main/resources/
+├── src/test/java/
 ├── Dockerfile
 ├── pom.xml
 └── README.md
@@ -113,6 +119,25 @@ Os nomes `Brigadista / Gestor / Administrador` presentes no enunciado são exemp
 - logs sem senha, JWT ou segredo;
 - mensagens de login sem enumeração de usuário.
 
+### Testes automatizados
+
+O projeto agora possui testes de integração e unidade para:
+
+- login válido com emissão de JWT;
+- credenciais inválidas com HTTP 401;
+- validação de payload com HTTP 400;
+- rota protegida sem token com HTTP 401;
+- RBAC com ADMIN autorizado e ANALISTA bloqueado por HTTP 403;
+- token inválido com HTTP 401;
+- endpoint Prometheus disponível para coleta;
+- rate limiting retornando HTTP 429 e `Retry-After`.
+
+Execute com:
+
+```bash
+mvn clean verify
+```
+
 ## 6. Infraestrutura segura
 
 ### Docker
@@ -147,6 +172,8 @@ Métricas de segurança principais:
 
 O dashboard provisionado fica em `monitoring/grafana/dashboards/fordretain-security.json`.
 
+O endpoint `/actuator/prometheus` é liberado para o coletor local. Em produção, a aplicação deve ser exposta apenas por rede interna, ServiceMonitor ou política de rede; os demais endpoints do Actuator continuam restritos a `ADMIN`.
+
 ### Executar monitoramento
 
 1. Execute a API na porta `8080`.
@@ -161,7 +188,39 @@ docker compose -f docker-compose.monitoring.yml up -d
 5. Prometheus: porta `9090`.
 6. Grafana: porta `3000`.
 
-## 8. Variáveis obrigatórias
+## 8. Executar localmente sem Oracle
+
+O perfil `local` usa banco H2 em memória e valores previsíveis exclusivos para demonstração. Ele não deve ser ativado em produção.
+
+No PowerShell:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE="local"
+mvn spring-boot:run
+```
+
+No Bash:
+
+```bash
+SPRING_PROFILES_ACTIVE=local mvn spring-boot:run
+```
+
+Depois, acesse:
+
+- Health: `http://localhost:8080/actuator/health`
+- Swagger: `http://localhost:8080/swagger-ui.html`
+
+Usuários acadêmicos de demonstração:
+
+| Perfil | E-mail | Senha local |
+|---|---|---|
+| ADMIN | `admin@ford.com` | `ford2026` |
+| GERENTE | `gerente@ford.com` | `ford2026` |
+| ANALISTA | `analista@ford.com` | `ford2026` |
+
+As senhas são armazenadas no código somente como hash BCrypt. Esses usuários não devem existir em produção.
+
+## 9. Variáveis obrigatórias em produção
 
 Nunca versione valores reais.
 
@@ -177,15 +236,15 @@ CORS_ALLOWED_ORIGINS
 
 O arquivo de testes usa somente valores próprios de teste; secrets de produção não são necessários para executar CI de PR.
 
-## 9. MQTT/TLS e módulos externos
+## 10. MQTT/TLS e módulos externos
 
 **MQTT/TLS não é implementado como evidência executável neste repositório**, porque o FordRetain API aqui versionado não possui módulo IoT/MQTT. O documento registra o requisito como **não aplicável ao escopo atual**, evitando apresentar uma configuração fictícia como se estivesse em produção.
 
 Da mesma forma, controles específicos do aplicativo mobile e do modelo de ML devem ser instrumentados nos respectivos módulos quando integrados; este repositório cobre a API e os artefatos de infraestrutura/monitoramento presentes aqui.
 
-## 10. Evidências para a entrega
+## 11. Evidências para a entrega
 
-Não são usados prints fabricados. Após a execução real, salvar em `evidencias/`:
+Não são usados prints fabricados. A pasta `evidencias/` já contém registros reais de build, testes, validação e login pelo Swagger. Ainda devem ser capturados:
 
 - pipeline completo e gate final;
 - CodeQL/SAST;
@@ -200,7 +259,7 @@ Não são usados prints fabricados. Após a execução real, salvar em `evidenci
 
 O roteiro exato está em [`evidencias/README.md`](evidencias/README.md).
 
-## 11. Documento consolidado
+## 12. Documento consolidado
 
 [`docs/SPRINT3_CYBERSECURITY.md`](docs/SPRINT3_CYBERSECURITY.md) contém as quatro atividades exigidas pela rubrica, o vínculo entre controles e riscos, STRIDE, OWASP, LGPD, segurança contínua e checklist final.
 

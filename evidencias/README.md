@@ -2,6 +2,20 @@
 
 Esta pasta é reservada para **evidências reais de execução**. Não inserir prints simulados ou fabricados.
 
+## Evidências já adicionadas
+
+| Arquivo | O que comprova | Status |
+|---|---|---|
+| `00-estrutura-projeto.png` | organização das pastas e artefatos | disponível |
+| `15-swagger-login-admin-200.png` | login ADMIN executado com HTTP 200 | disponível |
+| `16-swagger-login-admin-request.png` | payload de autenticação de demonstração | disponível |
+| `17-swagger-login-admin-response.png` | retorno de perfil e JWT | disponível |
+| `18-swagger-login-gerente-200.png` | login GERENTE executado com HTTP 200 | disponível |
+| `19-swagger-validacao-400.png` | validação de entrada retornando HTTP 400 | disponível |
+| `20-maven-test-build-success.png` | teste Maven e build concluídos com sucesso | disponível |
+
+Os JWTs visíveis nos registros do Swagger pertencem à demonstração local e possuem expiração curta. Em novas capturas, oculte o valor completo do token e mantenha apenas o início necessário para comprovar que ele foi emitido.
+
 ## Padrão de nomes
 
 Use os seguintes nomes para facilitar a correção:
@@ -45,6 +59,13 @@ Além dos commits e arquivos do repositório, capture:
 - [ ] **13-rbac-403.png** — requisição autenticada com perfil sem permissão recebendo HTTP 403.
 - [ ] **14-rate-limit-429.png** — evidência controlada de HTTP 429 e header `Retry-After`.
 
+Evidências complementares já disponíveis:
+
+- [x] login ADMIN com HTTP 200 e JWT;
+- [x] login GERENTE com HTTP 200 e JWT;
+- [x] validação de payload com HTTP 400;
+- [x] execução de testes com `BUILD SUCCESS`.
+
 Arquivos que podem ser apresentados diretamente na correção:
 
 - `src/main/java/com/ford/fordretain/security/JwtService.java`
@@ -73,6 +94,18 @@ A evidência principal é o documento `docs/SPRINT3_CYBERSECURITY.md`, especialm
 - LGPD;
 - plano de segurança contínua;
 - checklist de conformidade.
+
+A imagem original da rubrica está em `docs/assets/rubrica-sprint3-cybersecurity.jpg` e foi vinculada ao relatório final.
+
+## Sequência sugerida para a apresentação
+
+1. Rubrica e arquitetura da solução.
+2. Pipeline e security gate.
+3. Build e testes automatizados.
+4. Login, JWT e validação de entrada.
+5. RBAC e rate limiting.
+6. Prometheus, Grafana e logs.
+7. STRIDE, OWASP, LGPD e plano contínuo.
 
 ## Como subir as evidências
 
