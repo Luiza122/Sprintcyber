@@ -96,11 +96,15 @@ await page.goto('http://127.0.0.1:9090/alerts', { waitUntil: 'networkidle' });
 await page.waitForTimeout(2500);
 await page.screenshot({ path: `${outputDirectory}/11-prometheus-alertas.png`, fullPage: true });
 
-await page.goto('http://127.0.0.1:3000/login', { waitUntil: 'networkidle' });
-await page.locator('input[name="user"]').fill(process.env.GRAFANA_ADMIN_USER ?? 'admin');
-await page.locator('input[name="password"]').fill(process.env.GRAFANA_ADMIN_PASSWORD ?? 'evidence-only-2026');
-await page.locator('button[type="submit"]').click();
-await page.waitForTimeout(2500);
+const grafanaLogin = await context.request.post('http://127.0.0.1:3000/login', {
+  data: {
+    user: process.env.GRAFANA_ADMIN_USER ?? 'admin',
+    password: process.env.GRAFANA_ADMIN_PASSWORD ?? 'evidence-only-2026'
+  }
+});
+if (!grafanaLogin.ok()) {
+  throw new Error(`Falha ao autenticar no Grafana: HTTP ${grafanaLogin.status()}`);
+}
 await page.goto('http://127.0.0.1:3000/d/fordretain-security/fordretain-seguranca-e-observabilidade?orgId=1&from=now-15m&to=now&refresh=5s', { waitUntil: 'networkidle' });
 await page.getByText('FordRetain - Segurança e Observabilidade', { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
 await page.waitForTimeout(10000);
