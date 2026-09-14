@@ -44,7 +44,7 @@ flowchart TD
     E -->|Falha crítica| G[Deploy bloqueado]
 ```
 
-A execução real da **PR #18**, workflow **Security Pipeline**, run **20**, validou com sucesso todos os jobs obrigatórios: Build/Testes/SBOM, SAST/CodeQL, SCA/Trivy, Gitleaks, IaC/Trivy, Container/Trivy e Gate final para deploy.
+A execução real da **PR #22**, workflow **Security Pipeline**, run **#42**, validou com sucesso todos os jobs obrigatórios: Build/Testes/SBOM, SAST/CodeQL, SCA/Trivy, Gitleaks, IaC/Trivy, Container/Trivy e Gate final para deploy.
 
 ---
 
@@ -89,7 +89,7 @@ A execução anterior do pipeline em `main` identificou vulnerabilidades crític
 5. A imagem Alpine executa atualização dos pacotes de segurança antes de rodar a aplicação.
 6. O gate de vulnerabilidade crítica foi mantido ativo.
 
-Resultado: na execução real da PR #18, o job **Container Security — Trivy** e seu security gate concluíram com sucesso.
+Resultado: na execução real da PR #22, o job **Container Security — Trivy** e seu security gate concluíram com sucesso.
 
 ## SBOM
 
@@ -109,7 +109,8 @@ A SBOM melhora rastreabilidade, auditoria e resposta a vulnerabilidades, pois pe
 - `.github/dependabot.yml`
 - `pom.xml`
 - `Dockerfile`
-- PR #18 / Security Pipeline / run 20
+- PR #22 / Security Pipeline / run #42
+- Runtime Evidence / run #6
 - prints indicados em `evidencias/README.md`
 
 ---
@@ -303,7 +304,7 @@ Evidências:
 - `src/main/java/com/ford/fordretain/dto/LoginRequestDTO.java`
 - `Dockerfile`
 - `k8s/fordretain-api.yaml`
-- commits da PR #18
+- commits da PR #22
 - roteiro de prints em `evidencias/README.md`
 
 ---
@@ -634,7 +635,7 @@ Os testes devem ocorrer apenas em ambiente autorizado e isolado. Os achados alim
 - [x] SBOM CycloneDX
 - [x] security gate para vulnerabilidade CRITICAL
 - [x] gate final para estágio de deploy
-- [x] execução real do pipeline com todos os jobs aprovados na PR #18 / run 20
+- [x] execução real do pipeline com todos os jobs aprovados na PR #22 / run #42
 
 ## Código e infraestrutura
 
@@ -667,7 +668,7 @@ Os testes devem ocorrer apenas em ambiente autorizado e isolado. Os achados alim
 - [x] regras de alertas
 - [x] dashboard Grafana provisionado
 - [x] fluxo detecção → análise → contenção → erradicação → recuperação
-- [ ] prints reais de Grafana/Prometheus/logs devem ser adicionados após execução local do ambiente de monitoramento
+- [x] prints reais de Grafana, Prometheus e logs anexados a partir da Runtime Evidence / run #6
 
 ## Compliance e segurança contínua
 
@@ -689,30 +690,13 @@ Os testes devem ocorrer apenas em ambiente autorizado e isolado. Os achados alim
 
 # Evidências finais
 
-A entrega técnica está implementada no repositório. A pasta `evidencias/` já contém prints reais de build/testes, login ADMIN e GERENTE, emissão de JWT e validação HTTP 400. Os demais itens visuais não podem ser fabricados e devem vir da execução do ambiente.
+A entrega técnica e o conjunto de evidências estão implementados no repositório. A pasta `evidencias/` contém prints reais do pipeline, build/testes/SBOM, scanners, security gate, login ADMIN e GERENTE, validação HTTP 400, Grafana, Prometheus, logs JSON, RBAC 403 e rate limit 429.
 
 O roteiro de captura está em:
 
 `evidencias/README.md`
 
-Evidências já incluídas:
-
-1. Estrutura do projeto.
-2. Build e testes com `BUILD SUCCESS`.
-3. Login ADMIN com HTTP 200.
-4. Login GERENTE com HTTP 200.
-5. Validação de entrada com HTTP 400.
-
-Prioridade dos próximos prints:
-
-1. Pipeline geral da execução mais recente da `main`.
-2. Artefato SBOM CycloneDX.
-3. CodeQL, Trivy SCA, Gitleaks, Trivy IaC e Trivy Container.
-4. Gate final para deploy.
-5. Grafana e Prometheus.
-6. Log JSON real.
-7. Teste RBAC com 403.
-8. Teste de rate limit com 429.
+As evidências `01` a `08` foram capturadas do Security Pipeline da PR #22 / run #42. As evidências `02` e `09` a `14` são reproduzíveis pelo workflow Runtime Evidence e foram geradas na run #6. Os arquivos `15` a `20` registram os testes locais anteriores pelo Swagger e Maven.
 
 Nenhuma evidência deve exibir credenciais, JWT completo, secrets ou dados pessoais reais.
 
@@ -722,4 +706,4 @@ Nenhuma evidência deve exibir credenciais, JWT completo, secrets ou dados pesso
 
 A Sprint 3 transforma os controles de segurança do FordRetain em um processo contínuo e verificável. O código aplica autenticação, autorização, validação, rate limiting, criptografia e tratamento seguro de segredos; a infraestrutura aplica hardening de container e Kubernetes; o pipeline realiza SAST, SCA, secret scanning, IaC e container security; a observabilidade fornece logs, métricas, alertas e dashboard; e a camada de governança consolida STRIDE, OWASP, LGPD e rotina de segurança contínua.
 
-O principal resultado técnico é que o security gate permaneceu rigoroso e, após a correção das dependências e do servidor embutido, a execução real da PR #18 passou integralmente, inclusive no scan da imagem e no gate final para deploy.
+O principal resultado técnico é que o security gate permaneceu rigoroso e, após a correção das dependências e do servidor embutido, a execução real da PR #22 passou integralmente, inclusive no scan da imagem e no gate final para deploy. A execução separada de Runtime Evidence comprovou o funcionamento da API, da observabilidade, do RBAC e do rate limiting.

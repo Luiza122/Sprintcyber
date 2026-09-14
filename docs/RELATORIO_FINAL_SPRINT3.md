@@ -22,13 +22,18 @@ O resultado combina implementação executável, testes automatizados, documenta
 As evidências adicionadas ao repositório comprovam:
 
 - estrutura organizada do projeto;
+- pipeline completo com os sete jobs aprovados e gate final liberado;
+- SAST/CodeQL, SCA/Trivy, Gitleaks, Trivy IaC e Trivy Container aprovados;
+- geração e validação da SBOM CycloneDX;
 - execução de testes Maven com `BUILD SUCCESS`;
 - login dos perfis ADMIN e GERENTE pelo Swagger;
 - emissão de JWT em requisição válida;
 - validação de entrada com resposta HTTP 400;
-- headers de segurança e resposta stateless da API.
+- target da API em estado `UP` no Prometheus, dashboard Grafana e alertas carregados;
+- logs JSON sanitizados com request ID;
+- RBAC retornando HTTP 403 e rate limit retornando HTTP 429 com `Retry-After`.
 
-Os arquivos estão catalogados em [`evidencias/README.md`](../evidencias/README.md). Tokens apresentados nos prints são de demonstração local e já expirados; nenhuma credencial de produção foi incluída.
+Os arquivos estão catalogados em [`evidencias/README.md`](../evidencias/README.md). As capturas do pipeline correspondem à PR #22 / Security Pipeline / run #42; as evidências reproduzíveis de runtime correspondem à Runtime Evidence / run #6. Tokens apresentados nos prints são de demonstração local e já expirados; nenhuma credencial de produção foi incluída.
 
 ## 4. Testes automatizados
 
@@ -69,18 +74,20 @@ Essa separação evita afirmar como concluído um controle que não pode ser dem
 - Evidências renomeadas de forma descritiva e vinculadas à rubrica.
 - Contexto de ativos, continuidade, ISO 27001, NIST CSF e Red/Blue Team incorporado ao documento consolidado.
 
-## 7. Evidências ainda recomendadas
+## 7. Evidências de execução anexadas
 
-Para fechar a apresentação visual, recomenda-se adicionar prints reais de:
+O conjunto visual da entrega está completo e inclui:
 
-1. execução mais recente do GitHub Actions com todos os jobs aprovados;
-2. target do Prometheus em estado `UP`;
-3. dashboard Grafana com dados;
-4. log JSON de auditoria;
-5. teste manual de RBAC com HTTP 403;
-6. teste manual de rate limit com HTTP 429.
+1. GitHub Actions com todos os jobs e o gate final aprovados;
+2. build, nove testes e SBOM CycloneDX;
+3. CodeQL, Trivy SCA, Gitleaks, Trivy IaC e Trivy Container;
+4. target do Prometheus em estado `UP` e regras de alerta carregadas;
+5. dashboard Grafana com os valores coletados;
+6. log JSON de auditoria sanitizado;
+7. teste de RBAC com HTTP 403;
+8. teste de rate limit com HTTP 429 e `Retry-After`.
 
-Esses itens não são simulados porque precisam representar a execução real do ambiente apresentado.
+Esses itens foram obtidos de execuções reais e permanecem reproduzíveis pelos workflows versionados.
 
 ## 8. Conclusão
 
