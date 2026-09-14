@@ -1,0 +1,188 @@
+name: Runtime Evidence Capture
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ evidence/runtime-capture ]
+    paths:
+      - '.github/workflows/runtime-evidence.yml'
+      - 'scripts/capture-runtime-evidence.mjs'
+      - 'package.json'
+      - 'pom.xml'
+      - 'src/**'
+      - 'monitoring/**'
+
+permissions:
+  contents: read
+
+jobs:
+  capture-runtime-evidence:
+    name: Executar ambiente e capturar evidências
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      SPRING_PROFILES_ACTIVE: local
+      GRAFANA_ADMIN_USER: admin
+      GRAFANA_ADMIN_PASSWORD: evidence-only-2026
+      LOGIN_RATE_LIMIT_RPM: '10'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configurar Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Configurar Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Compilar, testar e validar a SBOM
+        run: |
+          mkdir -p runtime-evidence evidencias
+          mvn -B clean verify | tee runtime-evidence/maven-verify.log
+          test -s target/classes/META-INF/sbom/application.cdx.json
+          {
+            echo "Arquivo: target/classes/META-INF/sbom/application.cdx.json"
+            echo "Tamanho: $(stat -c%s target/classes/META-INF/sbom/application.cdx.json) bytes"
+            echo "Componentes: $(jq '.components | length' target/classes/META-INF/sbom/application.cdx.json)"
+            echo "SHA-256: $(sha256sum target/classes/META-INF/sbom/application.cdx.json | cut -d' ' -f1)"
+          } > runtime-evidence/sbom-meta.txt
+
+      - name: Iniciar API no perfil local
+        run: |
+          nohup java -jar target/fordretain-api-1.0.0.jar \
+            --spring.profiles.active=local \
+            > runtime-evidence/api.log 2>&1 &
+          echo $! > runtime-evidence/api.pid
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:8080/actuator/health > runtime-evidence/health.json; then
+              exit 0
+            fi
+            sleep 2
+          done
+          tail -100 runtime-evidence/api.log
+          exit 1
+
+      - name: Iniciar Prometheus e Grafana
+        run: |
+          docker compose -f monitoring/docker-compose.monitoring.yml up -d
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:9090/-/ready >/dev/null \
+              && curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f monitoring/docker-compose.monitoring.yml ps
+          exit 1
+
+      - name: Executar cenários de RBAC e rate limit
+        shell: bash
+        run: |
+          admin_response=$(curl --fail --silent \
+            -H 'Content-Type: application/json' \
+            --data '{"email":"admin@ford.com","senha":"ford2026"}' \
+            http://127.0.0.1:8080/api/v1/auth/login)
+          analyst_response=$(curl --fail --silent \
+            -H 'Content-Type: application/json' \
+            --data '{"email":"analista@ford.com","senha":"ford2026"}' \
+            http://127.0.0.1:8080/api/v1/auth/login)
+
+          admin_token=$(jq -r '.token' <<<"$admin_response")
+          analyst_token=$(jq -r '.token' <<<"$analyst_response")
+          test -n "$admin_token" && test "$admin_token" != "null"
+          test -n "$analyst_token" && test "$analyst_token" != "null"
+
+          rbac_status=$(curl --silent --show-error \
+            --dump-header runtime-evidence/rbac-headers.txt \
+            --output runtime-evidence/rbac-body.json \
+            --write-out '%{http_code}' \
+            -H "Authorization: Bearer $analyst_token" \
+            http://127.0.0.1:8080/actuator/metrics)
+          echo "$rbac_status" > runtime-evidence/rbac-status.txt
+          test "$rbac_status" = "403"
+
+          admin_status=$(curl --silent --show-error \
+            --output runtime-evidence/admin-metrics.json \
+            --write-out '%{http_code}' \
+            -H "Authorization: Bearer $admin_token" \
+            http://127.0.0.1:8080/actuator/metrics)
+          test "$admin_status" = "200"
+
+          rm -f runtime-evidence/rate-limit-headers.txt runtime-evidence/rate-limit-body.json
+          for attempt in $(seq 1 20); do
+            status=$(curl --silent --show-error \
+              --dump-header runtime-evidence/current-headers.txt \
+              --output runtime-evidence/current-body.json \
+              --write-out '%{http_code}' \
+              -H 'Content-Type: application/json' \
+              --data '{"email":"teste@ford.com","senha":"senha-incorreta"}' \
+              http://127.0.0.1:8080/api/v1/auth/login)
+            if [ "$status" = "429" ]; then
+              mv runtime-evidence/current-headers.txt runtime-evidence/rate-limit-headers.txt
+              mv runtime-evidence/current-body.json runtime-evidence/rate-limit-body.json
+              echo "$status" > runtime-evidence/rate-limit-status.txt
+              break
+            fi
+          done
+          test "$(cat runtime-evidence/rate-limit-status.txt)" = "429"
+
+          sleep 20
+          curl --fail --silent http://127.0.0.1:9090/api/v1/targets > runtime-evidence/prometheus-targets.json
+          jq -e '.data.activeTargets[] | select(.labels.job == "fordretain-api" and .health == "up")' \
+            runtime-evidence/prometheus-targets.json >/dev/null
+          curl --fail --silent http://127.0.0.1:9090/api/v1/rules > runtime-evidence/prometheus-rules.json
+
+      - name: Instalar navegador para as capturas
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Tirar prints reais da execução
+        env:
+          EVIDENCE_COMMIT: ${{ github.sha }}
+          EVIDENCE_RUN_ID: ${{ github.run_id }}
+        run: node scripts/capture-runtime-evidence.mjs
+
+      - name: Conferir evidências geradas
+        run: |
+          test -s evidencias/02-build-testes-sbom.png
+          test -s evidencias/09-grafana-dashboard.png
+          test -s evidencias/10-prometheus-target.png
+          test -s evidencias/11-prometheus-alertas.png
+          test -s evidencias/12-log-json-auditoria.png
+          test -s evidencias/13-rbac-403.png
+          test -s evidencias/14-rate-limit-429.png
+          sha256sum evidencias/{02,09,10,11,12,13,14}-*.png
+
+      - name: Publicar pacote de evidências
+        uses: actions/upload-artifact@v5
+        with:
+          name: fordretain-runtime-evidence
+          path: |
+            evidencias/02-build-testes-sbom.png
+            evidencias/09-grafana-dashboard.png
+            evidencias/10-prometheus-target.png
+            evidencias/11-prometheus-alertas.png
+            evidencias/12-log-json-auditoria.png
+            evidencias/13-rbac-403.png
+            evidencias/14-rate-limit-429.png
+            runtime-evidence/*.json
+            runtime-evidence/*.txt
+            runtime-evidence/*.log
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Encerrar ambiente
+        if: always()
+        run: |
+          docker compose -f monitoring/docker-compose.monitoring.yml down -v || true
+          if [ -f runtime-evidence/api.pid ]; then
+            kill "$(cat runtime-evidence/api.pid)" || true
+          fi

@@ -95,7 +95,7 @@ Resultado: na execução real da PR #18, o job **Container Security — Trivy** 
 
 O plugin CycloneDX é executado na fase `verify` do Maven e gera:
 
-`target/bom.json`
+`target/classes/META-INF/sbom/application.cdx.json`
 
 No GitHub Actions, o arquivo é publicado como artefato:
 

@@ -80,7 +80,7 @@ Fluxo:
 ### Gates implementados
 
 - **Build/Testes:** `mvn clean verify`.
-- **SBOM:** CycloneDX em `target/bom.json`, publicado como artefato do GitHub Actions.
+- **SBOM:** CycloneDX em `target/classes/META-INF/sbom/application.cdx.json`, validada e publicada como artefato do GitHub Actions.
 - **SAST:** CodeQL para Java.
 - **SCA:** Trivy filesystem + Dependabot semanal.
 - **Secret scanning:** Gitleaks com histórico Git.

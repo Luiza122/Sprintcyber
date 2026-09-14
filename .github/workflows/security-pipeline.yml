@@ -33,13 +33,13 @@ jobs:
       - name: Compilar, testar e gerar SBOM CycloneDX
         run: mvn -B clean verify
 
-      - name: Publicar SBOM como evidência
+      - name: Validar e publicar SBOM como evidência
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: fordretain-sbom-cyclonedx
-          path: target/bom.json
-          if-no-files-found: warn
+          path: target/classes/META-INF/sbom/application.cdx.json
+          if-no-files-found: error
           retention-days: 30
 
   sast:
@@ -58,7 +58,7 @@ jobs:
           cache: maven
 
       - name: Inicializar CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: java
           build-mode: manual
@@ -67,7 +67,7 @@ jobs:
         run: mvn -B clean compile -DskipTests
 
       - name: Analisar código
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
 
   sca:
     name: SCA - Trivy FS + Dependabot

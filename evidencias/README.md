@@ -14,6 +14,10 @@ Esta pasta é reservada para **evidências reais de execução**. Não inserir p
 | `19-swagger-validacao-400.png` | validação de entrada retornando HTTP 400 | disponível |
 | `20-maven-test-build-success.png` | teste Maven e build concluídos com sucesso | disponível |
 
+Os arquivos `01` a `14` são gerados ou capturados a partir de execuções reais. O workflow
+`.github/workflows/runtime-evidence.yml` reproduz automaticamente as evidências `02` e `09` a `14`,
+mantendo os resultados vinculados ao commit e ao número da execução do GitHub Actions.
+
 Os JWTs visíveis nos registros do Swagger pertencem à demonstração local e possuem expiração curta. Em novas capturas, oculte o valor completo do token e mantenha apenas o início necessário para comprovar que ele foi emitido.
 
 ## Padrão de nomes
