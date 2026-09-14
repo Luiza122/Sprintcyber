@@ -16,12 +16,20 @@ const escapeHtml = (value) => String(value)
 
 const read = async (name) => readFile(`${runtimeDirectory}/${name}`, 'utf8');
 
-const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+const browser = await chromium.launch({
+  headless: true,
+  executablePath: '/usr/bin/google-chrome',
+  args: ['--no-sandbox', '--no-proxy-server']
+});
 const context = await browser.newContext({
   viewport: { width: 1440, height: 960 },
   colorScheme: 'dark'
 });
 const page = await context.newPage();
+page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`));
+page.on('response', (response) => {
+  if (response.status() >= 400) console.log(`[browser:http] ${response.status()} ${response.url()}`);
+});
 
 const baseStyle = `
   :root { color-scheme: dark; }
@@ -88,15 +96,17 @@ await captureReport({
   filename: '02-build-testes-sbom.png'
 });
 
-await page.goto('http://127.0.0.1:9090/targets', { waitUntil: 'networkidle' });
+await page.goto('http://localhost:9090/targets', { waitUntil: 'networkidle' });
 await page.waitForTimeout(2500);
+await page.getByText('fordretain-api', { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
 await page.screenshot({ path: `${outputDirectory}/10-prometheus-target.png`, fullPage: true });
 
-await page.goto('http://127.0.0.1:9090/alerts', { waitUntil: 'networkidle' });
+await page.goto('http://localhost:9090/alerts', { waitUntil: 'networkidle' });
 await page.waitForTimeout(2500);
+await page.getByText('FordRetainHigh5xxRate', { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
 await page.screenshot({ path: `${outputDirectory}/11-prometheus-alertas.png`, fullPage: true });
 
-const grafanaLogin = await context.request.post('http://127.0.0.1:3000/login', {
+const grafanaLogin = await context.request.post('http://localhost:3000/login', {
   data: {
     user: process.env.GRAFANA_ADMIN_USER ?? 'admin',
     password: process.env.GRAFANA_ADMIN_PASSWORD ?? 'evidence-only-2026'
@@ -105,12 +115,17 @@ const grafanaLogin = await context.request.post('http://127.0.0.1:3000/login', {
 if (!grafanaLogin.ok()) {
   throw new Error(`Falha ao autenticar no Grafana: HTTP ${grafanaLogin.status()}`);
 }
-const grafanaDashboard = await context.request.get('http://127.0.0.1:3000/api/dashboards/uid/fordretain-security');
+const grafanaDashboard = await context.request.get('http://localhost:3000/api/dashboards/uid/fordretain-security');
 if (!grafanaDashboard.ok()) {
   throw new Error(`Dashboard provisionado não encontrado: HTTP ${grafanaDashboard.status()}`);
 }
-await page.goto('http://127.0.0.1:3000/d/fordretain-security/evidencia?orgId=1&from=now-15m&to=now&refresh=5s&kiosk', { waitUntil: 'domcontentloaded' });
+await page.goto('http://localhost:3000/d/fordretain-security/evidencia?orgId=1&from=now-15m&to=now&refresh=5s&kiosk', { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(10000);
+const grafanaBody = await page.locator('body').innerText();
+if (grafanaBody.includes('failed to load its application files')) {
+  throw new Error('O front-end do Grafana não carregou; captura recusada');
+}
+await page.getByText('Falhas de login (10m)', { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
 await page.screenshot({ path: `${outputDirectory}/09-grafana-dashboard.png`, fullPage: true });
 
 const apiLog = await read('api.log');
