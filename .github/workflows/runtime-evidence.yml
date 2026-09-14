@@ -138,6 +138,26 @@ jobs:
           jq -e '.data.activeTargets[] | select(.labels.job == "fordretain-api" and .health == "up")' \
             runtime-evidence/prometheus-targets.json >/dev/null
           curl --fail --silent http://127.0.0.1:9090/api/v1/rules > runtime-evidence/prometheus-rules.json
+          curl --fail --silent \
+            --user "$GRAFANA_ADMIN_USER:$GRAFANA_ADMIN_PASSWORD" \
+            http://127.0.0.1:3000/api/dashboards/uid/fordretain-security \
+            > runtime-evidence/grafana-dashboard.json
+
+          query_value() {
+            curl --fail --silent --get \
+              --data-urlencode "query=$1" \
+              http://127.0.0.1:9090/api/v1/query \
+              | jq -r '.data.result[0].value[1] // "0"'
+          }
+          jq -n \
+            --arg loginSuccess "$(query_value 'fordretain_security_login_total{result="success"}')" \
+            --arg loginFailure "$(query_value 'fordretain_security_login_total{result="failure"}')" \
+            --arg accessDenied "$(query_value 'fordretain_security_access_denied_total')" \
+            --arg rateLimited "$(query_value 'fordretain_security_rate_limited_total')" \
+            --arg httpRequests "$(query_value 'sum(http_server_requests_seconds_count)')" \
+            --arg apiUp "$(query_value 'up{job="fordretain-api"}')" \
+            '{loginSuccess:$loginSuccess,loginFailure:$loginFailure,accessDenied:$accessDenied,rateLimited:$rateLimited,httpRequests:$httpRequests,apiUp:$apiUp}' \
+            > runtime-evidence/monitoring-values.json
 
       - name: Instalar navegador para as capturas
         run: |
