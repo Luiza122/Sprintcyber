@@ -80,7 +80,7 @@ Fluxo:
 ### Gates implementados
 
 - **Build/Testes:** `mvn clean verify`.
-- **SBOM:** CycloneDX em `target/bom.json`, publicado como artefato do GitHub Actions.
+- **SBOM:** CycloneDX em `target/classes/META-INF/sbom/application.cdx.json`, validada e publicada como artefato do GitHub Actions.
 - **SAST:** CodeQL para Java.
 - **SCA:** Trivy filesystem + Dependabot semanal.
 - **Secret scanning:** Gitleaks com histórico Git.
@@ -244,18 +244,9 @@ Da mesma forma, controles específicos do aplicativo mobile e do modelo de ML de
 
 ## 11. Evidências para a entrega
 
-Não são usados prints fabricados. A pasta `evidencias/` já contém registros reais de build, testes, validação e login pelo Swagger. Ainda devem ser capturados:
+Não são usados prints fabricados. A pasta `evidencias/` contém o conjunto completo de registros reais da execução: pipeline e security gate, CodeQL, Trivy SCA/IaC/Container, Gitleaks, SBOM CycloneDX, Prometheus, dashboard Grafana, alertas, log JSON, RBAC com HTTP 403 e rate limit com HTTP 429. Também permanecem disponíveis as capturas locais de build, validação e login pelo Swagger.
 
-- pipeline completo e gate final;
-- CodeQL/SAST;
-- SCA/Trivy;
-- Gitleaks;
-- Trivy Container;
-- Trivy IaC;
-- artefato SBOM CycloneDX;
-- dashboard Grafana;
-- exemplo de log JSON;
-- métricas/alertas Prometheus.
+As capturas do pipeline correspondem à [PR #22 — Security Pipeline, run #42](https://github.com/Luiza122/Sprintcyber/actions/runs/34908099517). As evidências de observabilidade e dos testes HTTP foram produzidas pela [Runtime Evidence, run #6](https://github.com/Luiza122/Sprintcyber/actions/runs/34907658114), com os dados brutos publicados como artefato da execução.
 
 O roteiro exato está em [`evidencias/README.md`](evidencias/README.md).
 

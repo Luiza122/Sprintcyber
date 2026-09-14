@@ -1,0 +1,9 @@
+{
+  "name": "fordretain-runtime-evidence",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Captura reproduzível de evidências visuais da Sprint 3",
+  "devDependencies": {
+    "playwright": "1.55.0"
+  }
+}
