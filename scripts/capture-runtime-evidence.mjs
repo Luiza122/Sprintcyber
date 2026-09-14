@@ -105,8 +105,11 @@ const grafanaLogin = await context.request.post('http://127.0.0.1:3000/login', {
 if (!grafanaLogin.ok()) {
   throw new Error(`Falha ao autenticar no Grafana: HTTP ${grafanaLogin.status()}`);
 }
-await page.goto('http://127.0.0.1:3000/d/fordretain-security/fordretain-seguranca-e-observabilidade?orgId=1&from=now-15m&to=now&refresh=5s', { waitUntil: 'networkidle' });
-await page.getByText('FordRetain - Segurança e Observabilidade', { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
+const grafanaDashboard = await context.request.get('http://127.0.0.1:3000/api/dashboards/uid/fordretain-security');
+if (!grafanaDashboard.ok()) {
+  throw new Error(`Dashboard provisionado não encontrado: HTTP ${grafanaDashboard.status()}`);
+}
+await page.goto('http://127.0.0.1:3000/d/fordretain-security/evidencia?orgId=1&from=now-15m&to=now&refresh=5s&kiosk', { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(10000);
 await page.screenshot({ path: `${outputDirectory}/09-grafana-dashboard.png`, fullPage: true });
 
