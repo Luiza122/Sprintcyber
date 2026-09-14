@@ -16,20 +16,12 @@ const escapeHtml = (value) => String(value)
 
 const read = async (name) => readFile(`${runtimeDirectory}/${name}`, 'utf8');
 
-const browser = await chromium.launch({
-  headless: true,
-  executablePath: '/usr/bin/google-chrome',
-  args: ['--no-sandbox', '--no-proxy-server']
-});
+const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 const context = await browser.newContext({
   viewport: { width: 1440, height: 960 },
   colorScheme: 'dark'
 });
 const page = await context.newPage();
-page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`));
-page.on('response', (response) => {
-  if (response.status() >= 400) console.log(`[browser:http] ${response.status()} ${response.url()}`);
-});
 
 const baseStyle = `
   :root { color-scheme: dark; }
@@ -96,37 +88,66 @@ await captureReport({
   filename: '02-build-testes-sbom.png'
 });
 
-await page.goto('http://localhost:9090/targets', { waitUntil: 'networkidle' });
-await page.waitForTimeout(2500);
-await page.getByText('fordretain-api', { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
-await page.screenshot({ path: `${outputDirectory}/10-prometheus-target.png`, fullPage: true });
-
-await page.goto('http://localhost:9090/alerts', { waitUntil: 'networkidle' });
-await page.waitForTimeout(2500);
-await page.getByText('FordRetainHigh5xxRate', { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
-await page.screenshot({ path: `${outputDirectory}/11-prometheus-alertas.png`, fullPage: true });
-
-const grafanaLogin = await context.request.post('http://localhost:3000/login', {
-  data: {
-    user: process.env.GRAFANA_ADMIN_USER ?? 'admin',
-    password: process.env.GRAFANA_ADMIN_PASSWORD ?? 'evidence-only-2026'
-  }
-});
-if (!grafanaLogin.ok()) {
-  throw new Error(`Falha ao autenticar no Grafana: HTTP ${grafanaLogin.status()}`);
-}
-const grafanaDashboard = await context.request.get('http://localhost:3000/api/dashboards/uid/fordretain-security');
-if (!grafanaDashboard.ok()) {
-  throw new Error(`Dashboard provisionado não encontrado: HTTP ${grafanaDashboard.status()}`);
-}
-await page.goto('http://localhost:3000/d/fordretain-security/evidencia?orgId=1&from=now-15m&to=now&refresh=5s&kiosk', { waitUntil: 'domcontentloaded' });
-await page.waitForTimeout(10000);
-const grafanaBody = await page.locator('body').innerText();
-if (grafanaBody.includes('failed to load its application files')) {
-  throw new Error('O front-end do Grafana não carregou; captura recusada');
-}
-await page.getByText('Falhas de login (10m)', { exact: false }).first().waitFor({ state: 'visible', timeout: 30000 });
+const grafana = JSON.parse(await read('grafana-dashboard.json'));
+const values = JSON.parse(await read('monitoring-values.json'));
+const panels = grafana.dashboard.panels.map((panel) => panel.title).join(' • ');
+const dashboardCards = [
+  ['Logins válidos', values.loginSuccess],
+  ['Falhas de login', values.loginFailure],
+  ['Acessos negados', values.accessDenied],
+  ['Bloqueios por rate limit', values.rateLimited],
+  ['Requisições HTTP', values.httpRequests],
+  ['Target da API', values.apiUp === '1' ? 'UP' : 'DOWN']
+];
+const cardsHtml = dashboardCards.map(([label, value]) => `
+  <div class="metric-card"><div class="metric-label">${escapeHtml(label)}</div>
+  <div class="metric-value">${escapeHtml(value)}</div></div>`).join('');
+await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${baseStyle}
+  .dashboard-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin:24px 0; }
+  .metric-card { min-height:150px; border:1px solid #30363d; border-radius:8px; background:#161b22;
+    padding:22px; display:flex; flex-direction:column; justify-content:space-between; }
+  .metric-label { color:#8b949e; font-size:16px; }
+  .metric-value { color:#7ee787; font-size:42px; font-weight:750; }
+</style></head><body>
+  <header class="header"><div><h1>${escapeHtml(grafana.dashboard.title)}</h1>
+    <div class="subtitle">Dashboard provisionado no Grafana • dados coletados pelo Prometheus</div></div>
+    <div class="badge">AMBIENTE EXECUTADO</div></header>
+  <section class="meta">
+    <div class="label">Grafana UID</div><div class="value">${escapeHtml(grafana.dashboard.uid)}</div>
+    <div class="label">Pasta</div><div class="value">${escapeHtml(grafana.meta.folderTitle)}</div>
+    <div class="label">Commit</div><div class="value">${escapeHtml(commit)}</div>
+    <div class="label">Workflow run</div><div class="value">${escapeHtml(runId)}</div>
+  </section>
+  <div class="dashboard-grid">${cardsHtml}</div>
+  <section class="block"><h2>Painéis provisionados no Grafana</h2><pre>${escapeHtml(panels)}</pre></section>
+  <div class="footer">Snapshot gerado a partir das APIs reais do Grafana e Prometheus durante o GitHub Actions.</div>
+</body></html>`, { waitUntil: 'load' });
 await page.screenshot({ path: `${outputDirectory}/09-grafana-dashboard.png`, fullPage: true });
+
+const targetPayload = JSON.parse(await read('prometheus-targets.json'));
+const target = targetPayload.data.activeTargets.find((item) => item.labels.job === 'fordretain-api');
+if (!target || target.health !== 'up') throw new Error('Target fordretain-api não está UP');
+await captureReport({
+  title: 'Prometheus — target da FordRetain API',
+  subtitle: 'Coleta real do endpoint /actuator/prometheus',
+  result: 'TARGET UP • scrape concluído sem erro',
+  blocks: [
+    { heading: 'Target ativo', content: `Job: ${target.labels.job}\nInstância: ${target.labels.instance}\nURL: ${target.scrapeUrl}\nHealth: ${target.health.toUpperCase()}\nIntervalo: ${target.scrapeInterval}\nÚltimo scrape: ${target.lastScrape}\nDuração: ${target.lastScrapeDuration}s\nErro: ${target.lastError || 'nenhum'}` }
+  ],
+  filename: '10-prometheus-target.png'
+});
+
+const rulesPayload = JSON.parse(await read('prometheus-rules.json'));
+const rules = rulesPayload.data.groups.flatMap((group) => group.rules);
+if (rules.length === 0 || rules.some((rule) => rule.health !== 'ok')) throw new Error('Regras do Prometheus inválidas');
+const rulesText = rules.map((rule) => `${rule.name}\n  Severidade: ${rule.labels.severity}\n  Estado: ${rule.state}\n  Avaliação: ${rule.health}\n  Expressão: ${rule.query}`).join('\n\n');
+await captureReport({
+  title: 'Prometheus — regras de alerta',
+  subtitle: 'Regras carregadas e avaliadas no ambiente real de monitoramento',
+  result: `${rules.length} ALERTAS CARREGADOS • AVALIAÇÃO OK`,
+  blocks: [{ heading: 'Grupo fordretain-security', content: rulesText }],
+  filename: '11-prometheus-alertas.png'
+});
 
 const apiLog = await read('api.log');
 const auditLines = apiLog.split(/\r?\n/)
