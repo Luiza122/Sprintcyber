@@ -19,7 +19,9 @@ const read = async (name) => readFile(`${runtimeDirectory}/${name}`, 'utf8');
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 const context = await browser.newContext({
   viewport: { width: 1440, height: 960 },
-  colorScheme: 'dark'
+  colorScheme: 'dark',
+  locale: 'en-US',
+  timezoneId: 'UTC'
 });
 const page = await context.newPage();
 page.on('requestfailed', (request) => console.log('Browser request failed:', request.url(), request.failure()?.errorText));
