@@ -90,38 +90,17 @@ await captureReport({
 
 const grafana = JSON.parse(await read('grafana-dashboard.json'));
 const values = JSON.parse(await read('monitoring-values.json'));
-const panels = grafana.dashboard.panels.map((panel) => panel.title).join(' • ');
-const dashboardCards = [
-  ['Logins válidos', values.loginSuccess],
-  ['Falhas de login', values.loginFailure],
-  ['Acessos negados', values.accessDenied],
-  ['Bloqueios por rate limit', values.rateLimited],
-  ['Requisições HTTP', values.httpRequests],
-  ['Target da API', values.apiUp === '1' ? 'UP' : 'DOWN']
-];
-const cardsHtml = dashboardCards.map(([label, value]) => `
-  <div class="metric-card"><div class="metric-label">${escapeHtml(label)}</div>
-  <div class="metric-value">${escapeHtml(value)}</div></div>`).join('');
-await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${baseStyle}
-  .dashboard-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin:24px 0; }
-  .metric-card { min-height:150px; border:1px solid #30363d; border-radius:8px; background:#161b22;
-    padding:22px; display:flex; flex-direction:column; justify-content:space-between; }
-  .metric-label { color:#8b949e; font-size:16px; }
-  .metric-value { color:#7ee787; font-size:42px; font-weight:750; }
-</style></head><body>
-  <header class="header"><div><h1>${escapeHtml(grafana.dashboard.title)}</h1>
-    <div class="subtitle">Dashboard provisionado no Grafana • dados coletados pelo Prometheus</div></div>
-    <div class="badge">AMBIENTE EXECUTADO</div></header>
-  <section class="meta">
-    <div class="label">Grafana UID</div><div class="value">${escapeHtml(grafana.dashboard.uid)}</div>
-    <div class="label">Pasta</div><div class="value">${escapeHtml(grafana.meta.folderTitle)}</div>
-    <div class="label">Commit</div><div class="value">${escapeHtml(commit)}</div>
-    <div class="label">Workflow run</div><div class="value">${escapeHtml(runId)}</div>
-  </section>
-  <div class="dashboard-grid">${cardsHtml}</div>
-  <section class="block"><h2>Painéis provisionados no Grafana</h2><pre>${escapeHtml(panels)}</pre></section>
-  <div class="footer">Snapshot gerado a partir das APIs reais do Grafana e Prometheus durante o GitHub Actions.</div>
-</body></html>`, { waitUntil: 'load' });
+if (grafana.dashboard.uid !== 'fordretain-security' || values.apiUp !== '1') {
+  throw new Error('Grafana não provisionado ou API sem coleta');
+}
+await page.goto('http://127.0.0.1:3000/login', { waitUntil: 'domcontentloaded' });
+await page.locator('input[name="user"]').fill(process.env.GRAFANA_ADMIN_USER);
+await page.locator('input[name="password"]').fill(process.env.GRAFANA_ADMIN_PASSWORD);
+await page.locator('button[type="submit"]').click();
+await page.goto('http://127.0.0.1:3000/d/fordretain-security/fordretain-security?orgId=1&from=now-15m&to=now', { waitUntil: 'domcontentloaded' });
+await page.getByText('FordRetain - Segurança e Observabilidade').first().waitFor({ state: 'visible', timeout: 30000 });
+await page.getByText('Falhas de login (10m)').first().waitFor({ state: 'visible', timeout: 30000 });
+await page.waitForTimeout(5000);
 await page.screenshot({ path: `${outputDirectory}/09-grafana-dashboard.png`, fullPage: true });
 
 const targetPayload = JSON.parse(await read('prometheus-targets.json'));

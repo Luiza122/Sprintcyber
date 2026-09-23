@@ -45,7 +45,7 @@ public class CryptoUtils {
             byte[] ciphertext = cipher.doFinal(data.getBytes(StandardCharsets.UTF_8));
             ByteBuffer buffer = ByteBuffer.allocate(iv.length + ciphertext.length);
             buffer.put(iv).put(ciphertext);
-            return Base64.getEncoder().encodeToString(buffer.array());
+            return "v1:" + Base64.getEncoder().encodeToString(buffer.array());
         } catch (Exception e) {
             log.error("Erro ao criptografar dado sensível");
             throw new RuntimeException("Erro de criptografia");
@@ -55,7 +55,17 @@ public class CryptoUtils {
     public String decrypt(String encrypted) {
         if (encrypted == null) return null;
         try {
-            byte[] decoded = Base64.getDecoder().decode(encrypted);
+            // Dados anteriores à criptografia podem existir no Oracle. Apenas
+            // telefones legados plausíveis são aceitos em texto; uma tag GCM
+            // inválida jamais é devolvida como se fosse um valor legítimo.
+            if (!encrypted.startsWith("v1:") && encrypted.matches("\\d{10,11}")) {
+                return encrypted;
+            }
+            byte[] decoded = Base64.getDecoder().decode(encrypted.startsWith("v1:")
+                    ? encrypted.substring(3) : encrypted);
+            if (decoded.length < GCM_IV_LENGTH + 16) {
+                throw new IllegalArgumentException("Dado criptografado inválido");
+            }
             ByteBuffer buffer = ByteBuffer.wrap(decoded);
             byte[] iv = new byte[GCM_IV_LENGTH];
             buffer.get(iv);
@@ -65,8 +75,8 @@ public class CryptoUtils {
             cipher.init(Cipher.DECRYPT_MODE, deriveKey(), new GCMParameterSpec(GCM_TAG_LENGTH, iv));
             return new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            log.warn("Valor não criptografado (dado legado) ou corrompido — retornando como está");
-            return encrypted;
+            log.error("Falha de integridade ao descriptografar dado sensível");
+            throw new IllegalStateException("Dado sensível inválido ou corrompido", e);
         }
     }
 
