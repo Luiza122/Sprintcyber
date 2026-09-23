@@ -182,7 +182,7 @@ jobs:
           sha256sum evidencias/{02,09,10,11,12,13,14}-*.png
 
       - name: Publicar pacote de evidências
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: fordretain-runtime-evidence
           path: |
