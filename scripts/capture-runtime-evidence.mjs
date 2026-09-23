@@ -100,6 +100,8 @@ if (!grafanaLogin.ok()) {
   throw new Error(`Falha no login do Grafana: HTTP ${grafanaLogin.status()}`);
 }
 await page.goto('http://127.0.0.1:3000/d/fordretain-security/fordretain-security?orgId=1&from=now-15m&to=now', { waitUntil: 'domcontentloaded' });
+console.log('Grafana URL:', page.url(), 'title:', await page.title());
+console.log('Grafana visible text:', (await page.locator('body').innerText()).slice(0, 900));
 await page.getByText('FordRetain - Segurança e Observabilidade').first().waitFor({ state: 'visible', timeout: 30000 });
 await page.getByText('Falhas de login (10m)').first().waitFor({ state: 'visible', timeout: 30000 });
 await page.waitForTimeout(5000);
