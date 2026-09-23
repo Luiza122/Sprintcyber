@@ -80,7 +80,7 @@ const buildLines = mavenLog.split(/\r?\n/)
 await captureReport({
   title: 'Build, testes e SBOM CycloneDX',
   subtitle: 'Maven verify executado no ambiente efêmero do GitHub Actions',
-  result: 'BUILD SUCCESS • 9 testes aprovados • SBOM validada',
+  result: 'BUILD SUCCESS • 10 testes aprovados • SBOM validada',
   blocks: [
     { heading: 'Resumo do Maven', content: buildLines },
     { heading: 'Integridade da SBOM', content: await read('sbom-meta.txt') }
@@ -93,10 +93,12 @@ const values = JSON.parse(await read('monitoring-values.json'));
 if (grafana.dashboard.uid !== 'fordretain-security' || values.apiUp !== '1') {
   throw new Error('Grafana não provisionado ou API sem coleta');
 }
-await page.goto('http://127.0.0.1:3000/login', { waitUntil: 'domcontentloaded' });
-await page.locator('input[name="user"]').fill(process.env.GRAFANA_ADMIN_USER);
-await page.locator('input[name="password"]').fill(process.env.GRAFANA_ADMIN_PASSWORD);
-await page.locator('button[type="submit"]').click();
+const grafanaLogin = await page.request.post('http://127.0.0.1:3000/login', {
+  data: { user: process.env.GRAFANA_ADMIN_USER, password: process.env.GRAFANA_ADMIN_PASSWORD }
+});
+if (!grafanaLogin.ok()) {
+  throw new Error(`Falha no login do Grafana: HTTP ${grafanaLogin.status()}`);
+}
 await page.goto('http://127.0.0.1:3000/d/fordretain-security/fordretain-security?orgId=1&from=now-15m&to=now', { waitUntil: 'domcontentloaded' });
 await page.getByText('FordRetain - Segurança e Observabilidade').first().waitFor({ state: 'visible', timeout: 30000 });
 await page.getByText('Falhas de login (10m)').first().waitFor({ state: 'visible', timeout: 30000 });
