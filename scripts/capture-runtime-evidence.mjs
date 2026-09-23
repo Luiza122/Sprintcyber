@@ -112,7 +112,7 @@ console.log('Grafana URL:', grafanaPage.url(), 'title:', await grafanaPage.title
 console.log('Grafana visible text:', (await grafanaPage.locator('body').innerText()).slice(0, 900));
 console.log('Grafana boot data:', await grafanaPage.evaluate(() => Boolean(window.grafanaBootData)));
 await grafanaPage.getByText('FordRetain - Segurança e Observabilidade').first().waitFor({ state: 'visible', timeout: 30000 });
-await grafanaPage.getByText('Falhas de login (10m)').first().waitFor({ state: 'visible', timeout: 30000 });
+await grafanaPage.getByText('Falhas de login desde o início').first().waitFor({ state: 'visible', timeout: 30000 });
 await grafanaPage.waitForTimeout(5000);
 await grafanaPage.screenshot({ path: `${outputDirectory}/09-grafana-dashboard.png`, fullPage: true });
 
