@@ -8,14 +8,14 @@ Esta pasta é reservada para **evidências reais de execução**. Não inserir p
 |---|---|---|
 | `00-estrutura-projeto.png` | organização das pastas e artefatos | disponível |
 | `01-pipeline-geral.jpg` | execução completa do Security Pipeline aprovada | disponível |
-| `02-build-testes-sbom.png` | build, 9 testes e SBOM CycloneDX gerada | disponível |
+| `02-build-testes-sbom.png` | build, 10 testes e SBOM CycloneDX gerada | disponível |
 | `03-codeql-sast.jpg` | análise SAST com CodeQL aprovada | disponível |
 | `04-trivy-sca.jpg` | análise SCA com Trivy aprovada | disponível |
 | `05-gitleaks-secret-scanning.jpg` | secret scanning com Gitleaks aprovado | disponível |
 | `06-trivy-iac.jpg` | análise IaC com Trivy Config aprovada | disponível |
 | `07-trivy-container.jpg` | análise da imagem com Trivy aprovada | disponível |
 | `08-security-gate.jpg` | gate final para deploy aprovado | disponível |
-| `09-grafana-dashboard.png` | dashboard provisionado no Grafana com dados reais | disponível |
+| `09-grafana-dashboard.png` | screenshot direto da interface Grafana provisionada | disponível |
 | `10-prometheus-target.png` | target da API em estado `UP` | disponível |
 | `11-prometheus-alertas.png` | quatro regras de alerta carregadas | disponível |
 | `12-log-json-auditoria.png` | logs JSON sanitizados com request ID | disponível |
@@ -28,12 +28,13 @@ Esta pasta é reservada para **evidências reais de execução**. Não inserir p
 | `19-swagger-validacao-400.png` | validação de entrada retornando HTTP 400 | disponível |
 | `20-maven-test-build-success.png` | teste Maven e build concluídos com sucesso | disponível |
 
-Os arquivos `01` a `14` foram gerados ou capturados a partir de execuções reais. O workflow
+Os arquivos `01` a `14` foram gerados ou capturados a partir de execuções reais. O arquivo `09` é uma captura direta do navegador no Grafana; `02` e `10` a `14` são relatórios visuais gerados automaticamente a partir de logs e respostas HTTP da execução, com os dados brutos no artefato do Actions. O workflow
 `.github/workflows/runtime-evidence.yml` reproduz automaticamente as evidências `02` e `09` a `14`,
 mantendo os resultados vinculados ao commit e ao número da execução do GitHub Actions.
 
 - Pipeline e scanners: [PR #22 — Security Pipeline, run #42](https://github.com/Luiza122/Sprintcyber/actions/runs/34908099517).
-- API, monitoramento e testes HTTP: [Runtime Evidence, run #6](https://github.com/Luiza122/Sprintcyber/actions/runs/34907658114).
+- API, monitoramento e testes HTTP: [Runtime Evidence da integração, run 35922198862](https://github.com/Luiza122/Sprintcyber/actions/runs/35922198862), com dashboard final e dados brutos anexados.
+- Validação do código e security gate: [Security Pipeline da PR #25, run 35922204237](https://github.com/Luiza122/Sprintcyber/actions/runs/35922204237).
 
 Os JWTs visíveis nos registros do Swagger pertencem à demonstração local e possuem expiração curta. Em novas capturas, oculte o valor completo do token e mantenha apenas o início necessário para comprovar que ele foi emitido.
 
@@ -63,7 +64,7 @@ Use os seguintes nomes para facilitar a correção:
 ### 1. Pipeline DevSecOps
 
 - [x] **01-pipeline-geral.jpg** — tela do GitHub Actions mostrando todos os jobs da execução.
-- [x] **02-build-testes-sbom.png** — build, 9 testes e artefato CycloneDX validados.
+- [x] **02-build-testes-sbom.png** — build, 10 testes e artefato CycloneDX validados.
 - [x] **03-codeql-sast.jpg** — job `SAST - CodeQL` concluído.
 - [x] **04-trivy-sca.jpg** — relatório/gate SCA do Trivy.
 - [x] **05-gitleaks-secret-scanning.jpg** — Gitleaks concluído sem segredo versionado.

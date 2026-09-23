@@ -21,6 +21,8 @@ A Sprint 3 evolui a segurança do FordRetain para um modelo **DevSecOps**, em qu
 
 O projeto completo envolve API, dados, aplicativo mobile e modelos de machine learning. Este repositório implementa e comprova a camada da API Java, do pipeline, do container, do Kubernetes e da observabilidade. Os controles para mobile, IoT e ML são registrados como requisitos de integração, sem serem apresentados como código executável inexistente.
 
+A API funcional original FordRetain foi integrada aos controles da Sprint: predição demonstrativa, clientes, leads e dashboard, com persistência H2 no perfil local e configuração Oracle no perfil padrão. A predição usa regras, não um modelo de machine learning treinado. A execução Oracle e os módulos mobile e IoT exigem validação separada em seus próprios ambientes.
+
 Ativos críticos considerados na análise:
 
 | Ativo | Risco principal | Proteção prevista |
@@ -138,7 +140,7 @@ CRYPTO_SECRET
 CRYPTO_SALT
 ```
 
-Evidência: `src/main/java/com/ford/fordretain/security/CryptoUtils.java`.
+Evidências: `src/main/java/com/ford/fordretain/security/CryptoUtils.java`, `dao/impl/ClienteDAOImpl.java` e `FordRetainSecurityIntegrationTest.java`. O telefone é cifrado antes de gravar, decifrado nas leituras autorizadas e o teste confere o valor armazenado no banco.
 
 ## 2.2 JWT seguro
 
@@ -290,12 +292,13 @@ Esses controles permanecem como critérios de aceite do futuro módulo IoT.
 
 ## 2.11 Testes automatizados de segurança
 
-O build executa testes que verificam login válido, credencial inválida, validação de entrada, ausência de token, token inválido, separação de perfis, coleta Prometheus e rate limiting. O teste de RBAC comprova que `ANALISTA` recebe HTTP 403 na rota administrativa de métricas, enquanto `ADMIN` recebe HTTP 200.
+O build executa dez testes que verificam login válido, credencial inválida, validação de entrada, ausência de token, token inválido, separação de perfis, coleta Prometheus, rate limiting e o fluxo funcional de predição, persistência, consultas, atualização, exclusão e criptografia. O teste de RBAC comprova que `ANALISTA` recebe HTTP 403 na rota administrativa de métricas, enquanto `ADMIN` recebe HTTP 200.
 
 Evidências:
 
 - `src/test/java/com/ford/fordretain/AuthControllerIntegrationTest.java`;
 - `src/test/java/com/ford/fordretain/security/RateLimitFilterTest.java`;
+- `src/test/java/com/ford/fordretain/FordRetainSecurityIntegrationTest.java`;
 - `evidencias/20-maven-test-build-success.png`.
 
 ## Evidências desta atividade
@@ -668,7 +671,7 @@ Os testes devem ocorrer apenas em ambiente autorizado e isolado. Os achados alim
 - [x] regras de alertas
 - [x] dashboard Grafana provisionado
 - [x] fluxo detecção → análise → contenção → erradicação → recuperação
-- [x] prints reais de Grafana, Prometheus e logs anexados a partir da Runtime Evidence / run #6
+- [x] screenshot real do Grafana e relatórios verificáveis de Prometheus e logs anexados a partir da Runtime Evidence / run 35922198862
 
 ## Compliance e segurança contínua
 
@@ -696,7 +699,7 @@ O roteiro de captura está em:
 
 `evidencias/README.md`
 
-As evidências `01` a `08` foram capturadas do Security Pipeline da PR #22 / run #42. As evidências `02` e `09` a `14` são reproduzíveis pelo workflow Runtime Evidence e foram geradas na run #6. Os arquivos `15` a `20` registram os testes locais anteriores pelo Swagger e Maven.
+As evidências `01` e `03` a `08` registram uma execução anterior aprovada do Security Pipeline. A PR #25 passou novamente nos sete jobs na [run 35922204237](https://github.com/Luiza122/Sprintcyber/actions/runs/35922204237). As evidências `02` e `09` a `14` são reproduzíveis pelo workflow Runtime Evidence e foram atualizadas na [run 35922198862](https://github.com/Luiza122/Sprintcyber/actions/runs/35922198862). O arquivo `09` é screenshot direto do Grafana; `02` e `10` a `14` são relatórios visuais gerados dos logs e respostas reais, cujos dados brutos estão no artefato. Os arquivos `15` a `20` registram os testes locais anteriores pelo Swagger e Maven.
 
 Nenhuma evidência deve exibir credenciais, JWT completo, secrets ou dados pessoais reais.
 

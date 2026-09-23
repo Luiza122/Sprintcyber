@@ -59,8 +59,12 @@ flowchart LR
 │   ├── prometheus/
 │   └── grafana/
 ├── src/main/java/com/ford/fordretain/
+│   ├── config/             # DataSource e Swagger
 │   ├── controller/
+│   ├── dao/                # persistência de clientes, leads e predições
 │   ├── dto/
+│   ├── model/
+│   ├── service/            # predição demonstrativa baseada em regras
 │   └── security/
 ├── src/main/resources/
 ├── src/test/java/
@@ -131,12 +135,26 @@ O projeto agora possui testes de integração e unidade para:
 - token inválido com HTTP 401;
 - endpoint Prometheus disponível para coleta;
 - rate limiting retornando HTTP 429 e `Retry-After`.
+- fluxo funcional de predição, persistência, consultas, dashboard, atualização e exclusão, com verificação de telefone criptografado no banco H2.
 
 Execute com:
 
 ```bash
 mvn clean verify
 ```
+
+### API funcional integrada
+
+Os endpoints `/api/v1/predict`, `/api/v1/clientes`, `/api/v1/leads` e `/api/v1/dashboard` foram integrados à API original FordRetain. O telefone do cliente é protegido com AES-GCM antes da gravação e é recuperado apenas pela aplicação. O perfil `local` usa H2 para demonstração; o perfil padrão usa Oracle com credenciais externas. A pontuação da predição segue regras de demonstração da API original: **não representa um modelo de ML treinado**.
+
+```bash
+export JWT_SECRET='chave-local-de-teste-com-pelo-menos-64-caracteres-para-assinatura-hs512-12345'
+export CRYPTO_SECRET='segredo-local-de-teste'
+export CRYPTO_SALT='salt-local-de-teste'
+SPRING_PROFILES_ACTIVE=local mvn spring-boot:run
+```
+
+Use apenas credenciais de teste nesse perfil. A documentação interativa fica em `http://localhost:8080/swagger-ui.html`.
 
 ## 6. Infraestrutura segura
 
@@ -246,7 +264,7 @@ Da mesma forma, controles específicos do aplicativo mobile e do modelo de ML de
 
 Não são usados prints fabricados. A pasta `evidencias/` contém o conjunto completo de registros reais da execução: pipeline e security gate, CodeQL, Trivy SCA/IaC/Container, Gitleaks, SBOM CycloneDX, Prometheus, dashboard Grafana, alertas, log JSON, RBAC com HTTP 403 e rate limit com HTTP 429. Também permanecem disponíveis as capturas locais de build, validação e login pelo Swagger.
 
-As capturas do pipeline correspondem à [PR #22 — Security Pipeline, run #42](https://github.com/Luiza122/Sprintcyber/actions/runs/34908099517). As evidências de observabilidade e dos testes HTTP foram produzidas pela [Runtime Evidence, run #6](https://github.com/Luiza122/Sprintcyber/actions/runs/34907658114), com os dados brutos publicados como artefato da execução.
+O pipeline integrado passou com os sete jobs na [execução de segurança da PR #25](https://github.com/Luiza122/Sprintcyber/actions/runs/35922204237). O [workflow de runtime](https://github.com/Luiza122/Sprintcyber/actions/runs/35922198862) publicou as evidências atualizadas e os dados brutos: `09` é um screenshot direto do Grafana; `02` e `10` a `14` são relatórios visuais fiéis aos logs e respostas HTTP da execução. As imagens `01` e `03` a `08` registram a execução anterior, também aprovada, do pipeline.
 
 O roteiro exato está em [`evidencias/README.md`](evidencias/README.md).
 
