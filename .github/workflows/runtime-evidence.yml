@@ -3,7 +3,7 @@ name: Runtime Evidence Capture
 on:
   workflow_dispatch:
   push:
-    branches: [ evidence/runtime-capture ]
+    branches: [ main, evidence/runtime-capture, feat/integrate-ford-api ]
     paths:
       - '.github/workflows/runtime-evidence.yml'
       - 'scripts/capture-runtime-evidence.mjs'
