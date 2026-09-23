@@ -1,0 +1,39 @@
+name: Oracle Connection Validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  oracle-smoke-test:
+    name: Oracle - conexão somente leitura
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ORACLE_SMOKE_TEST: "true"
+      ORACLE_URL: ${{ secrets.ORACLE_URL }}
+      ORACLE_USER: ${{ secrets.ORACLE_USER }}
+      ORACLE_PASSWORD: ${{ secrets.ORACLE_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configurar Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Validar presença dos Secrets
+        shell: bash
+        run: |
+          test -n "$ORACLE_URL"
+          test -n "$ORACLE_USER"
+          test -n "$ORACLE_PASSWORD"
+
+      - name: Testar conexão Oracle sem alterar dados
+        run: mvn -B -Dtest=OracleConnectionSmokeTest test
