@@ -18,7 +18,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: ghcr.io/matheus-bortolotto/fordretain-api-java:SEU_SHA
+          image: ghcr.io/luiza122/sprintcyber:SEU_SHA
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

@@ -19,9 +19,14 @@ const read = async (name) => readFile(`${runtimeDirectory}/${name}`, 'utf8');
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 const context = await browser.newContext({
   viewport: { width: 1440, height: 960 },
-  colorScheme: 'dark'
+  colorScheme: 'dark',
+  locale: 'en-US',
+  timezoneId: 'UTC'
 });
 const page = await context.newPage();
+page.on('requestfailed', (request) => console.log('Browser request failed:', request.url(), request.failure()?.errorText));
+page.on('response', (response) => { if (response.status() >= 400) console.log('Browser HTTP:', response.status(), response.url()); });
+page.on('pageerror', (error) => console.log('Browser page error:', error.message));
 
 const baseStyle = `
   :root { color-scheme: dark; }
@@ -80,7 +85,7 @@ const buildLines = mavenLog.split(/\r?\n/)
 await captureReport({
   title: 'Build, testes e SBOM CycloneDX',
   subtitle: 'Maven verify executado no ambiente efêmero do GitHub Actions',
-  result: 'BUILD SUCCESS • 9 testes aprovados • SBOM validada',
+  result: 'BUILD SUCCESS • 10 testes aprovados • SBOM validada',
   blocks: [
     { heading: 'Resumo do Maven', content: buildLines },
     { heading: 'Integridade da SBOM', content: await read('sbom-meta.txt') }
@@ -90,39 +95,26 @@ await captureReport({
 
 const grafana = JSON.parse(await read('grafana-dashboard.json'));
 const values = JSON.parse(await read('monitoring-values.json'));
-const panels = grafana.dashboard.panels.map((panel) => panel.title).join(' • ');
-const dashboardCards = [
-  ['Logins válidos', values.loginSuccess],
-  ['Falhas de login', values.loginFailure],
-  ['Acessos negados', values.accessDenied],
-  ['Bloqueios por rate limit', values.rateLimited],
-  ['Requisições HTTP', values.httpRequests],
-  ['Target da API', values.apiUp === '1' ? 'UP' : 'DOWN']
-];
-const cardsHtml = dashboardCards.map(([label, value]) => `
-  <div class="metric-card"><div class="metric-label">${escapeHtml(label)}</div>
-  <div class="metric-value">${escapeHtml(value)}</div></div>`).join('');
-await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${baseStyle}
-  .dashboard-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin:24px 0; }
-  .metric-card { min-height:150px; border:1px solid #30363d; border-radius:8px; background:#161b22;
-    padding:22px; display:flex; flex-direction:column; justify-content:space-between; }
-  .metric-label { color:#8b949e; font-size:16px; }
-  .metric-value { color:#7ee787; font-size:42px; font-weight:750; }
-</style></head><body>
-  <header class="header"><div><h1>${escapeHtml(grafana.dashboard.title)}</h1>
-    <div class="subtitle">Dashboard provisionado no Grafana • dados coletados pelo Prometheus</div></div>
-    <div class="badge">AMBIENTE EXECUTADO</div></header>
-  <section class="meta">
-    <div class="label">Grafana UID</div><div class="value">${escapeHtml(grafana.dashboard.uid)}</div>
-    <div class="label">Pasta</div><div class="value">${escapeHtml(grafana.meta.folderTitle)}</div>
-    <div class="label">Commit</div><div class="value">${escapeHtml(commit)}</div>
-    <div class="label">Workflow run</div><div class="value">${escapeHtml(runId)}</div>
-  </section>
-  <div class="dashboard-grid">${cardsHtml}</div>
-  <section class="block"><h2>Painéis provisionados no Grafana</h2><pre>${escapeHtml(panels)}</pre></section>
-  <div class="footer">Snapshot gerado a partir das APIs reais do Grafana e Prometheus durante o GitHub Actions.</div>
-</body></html>`, { waitUntil: 'load' });
-await page.screenshot({ path: `${outputDirectory}/09-grafana-dashboard.png`, fullPage: true });
+if (grafana.dashboard.uid !== 'fordretain-security' || values.apiUp !== '1') {
+  throw new Error('Grafana não provisionado ou API sem coleta');
+}
+const grafanaLogin = await page.request.post('http://127.0.0.1:3000/login', {
+  data: { user: process.env.GRAFANA_ADMIN_USER, password: process.env.GRAFANA_ADMIN_PASSWORD }
+});
+if (!grafanaLogin.ok()) {
+  throw new Error(`Falha no login do Grafana: HTTP ${grafanaLogin.status()}`);
+}
+const grafanaPage = await context.newPage();
+grafanaPage.on('console', (message) => { if (message.type() === 'error') console.log('Grafana console:', message.text()); });
+grafanaPage.on('pageerror', (error) => console.log('Grafana JS:', error.message));
+await grafanaPage.goto('http://127.0.0.1:3000/d/fordretain-security/fordretain-security?orgId=1&from=now-15m&to=now', { waitUntil: 'load' });
+console.log('Grafana URL:', grafanaPage.url(), 'title:', await grafanaPage.title());
+console.log('Grafana visible text:', (await grafanaPage.locator('body').innerText()).slice(0, 900));
+console.log('Grafana boot data:', await grafanaPage.evaluate(() => Boolean(window.grafanaBootData)));
+await grafanaPage.getByText('FordRetain - Segurança e Observabilidade').first().waitFor({ state: 'visible', timeout: 30000 });
+await grafanaPage.getByText('Falhas de login desde o início').first().waitFor({ state: 'visible', timeout: 30000 });
+await grafanaPage.waitForTimeout(5000);
+await grafanaPage.screenshot({ path: `${outputDirectory}/09-grafana-dashboard.png`, fullPage: true });
 
 const targetPayload = JSON.parse(await read('prometheus-targets.json'));
 const target = targetPayload.data.activeTargets.find((item) => item.labels.job === 'fordretain-api');

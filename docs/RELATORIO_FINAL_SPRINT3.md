@@ -6,6 +6,8 @@ A Sprint 3 evolui o FordRetain para um fluxo DevSecOps verificável. O repositó
 
 O resultado combina implementação executável, testes automatizados, documentação técnica e evidências reais. Os itens que dependem de módulos externos, como aplicativo mobile, IoT e modelo de machine learning, são tratados como requisitos de integração e não como funcionalidades já implementadas nesta API.
 
+Nesta revisão, a API FordRetain original foi integrada ao projeto de segurança: predição demonstrativa por regras, clientes, leads e dashboard operam sobre H2 no perfil local. O telefone é criptografado antes da persistência. Oracle permanece configurado para a implantação, mas não foi testado sem credenciais e infraestrutura da organização.
+
 ![Rubrica da Sprint 3](assets/rubrica-sprint3-cybersecurity.jpg)
 
 ## 2. Entregas por bloco da rubrica
@@ -33,7 +35,7 @@ As evidências adicionadas ao repositório comprovam:
 - logs JSON sanitizados com request ID;
 - RBAC retornando HTTP 403 e rate limit retornando HTTP 429 com `Retry-After`.
 
-Os arquivos estão catalogados em [`evidencias/README.md`](../evidencias/README.md). As capturas do pipeline correspondem à PR #22 / Security Pipeline / run #42; as evidências reproduzíveis de runtime correspondem à Runtime Evidence / run #6. Tokens apresentados nos prints são de demonstração local e já expirados; nenhuma credencial de produção foi incluída.
+Os arquivos estão catalogados em [`evidencias/README.md`](../evidencias/README.md). A integração passou na [Security Pipeline da PR #25](https://github.com/Luiza122/Sprintcyber/actions/runs/35922204237) e as evidências de runtime atualizadas vieram da [run 35922198862](https://github.com/Luiza122/Sprintcyber/actions/runs/35922198862). O print `09` é da interface real do Grafana; os demais relatórios de runtime são renderizados dos logs e respostas reais, disponíveis no artefato da run. Tokens apresentados nos prints anteriores são de demonstração local e já expirados; nenhuma credencial de produção foi incluída.
 
 ## 4. Testes automatizados
 
@@ -50,6 +52,7 @@ O build executa testes de integração e unidade para os controles críticos:
 | token inválido | HTTP 401 |
 | coleta Prometheus | HTTP 200 |
 | excesso de tentativas | HTTP 429 e `Retry-After` |
+| fluxo FordRetain | predição, consultas, atualização e exclusão autorizadas, telefone cifrado no banco |
 
 O perfil `local` usa H2 em memória e permite executar a demonstração sem uma instância Oracle. O perfil padrão continua preparado para receber conexão e secrets externos em ambientes controlados.
 
@@ -57,11 +60,11 @@ O perfil `local` usa H2 em memória e permite executar a demonstração sem uma 
 
 | Componente | Cobertura atual | Controle de segurança |
 |---|---|---|
-| API Java | implementado neste repositório | JWT, RBAC, validação, rate limit, criptografia, logs e métricas |
+| API Java | endpoints funcionais integrados e testados em H2 | JWT, RBAC, validação, rate limit, criptografia, logs e métricas |
 | Dados Oracle | configuração de integração | credenciais externas, acesso mínimo, criptografia e backup operacional |
 | Mobile | repositório externo | armazenamento seguro, proteção de token, certificate pinning quando aplicável e telemetria |
 | IoT | não presente neste código | MQTT sobre TLS, identidade por dispositivo, autorização por tópico e rotação de certificados |
-| Machine learning | não presente neste código | controle de acesso ao modelo, versionamento, integridade, drift e monitoramento de inferência |
+| Machine learning | predição por regras demonstrativas, sem modelo treinado | futuro controle de acesso ao modelo, versionamento, integridade, drift e monitoramento de inferência |
 
 Essa separação evita afirmar como concluído um controle que não pode ser demonstrado neste repositório, sem deixar de registrar o desenho necessário para a solução integrada.
 
@@ -73,13 +76,14 @@ Essa separação evita afirmar como concluído um controle que não pode ser dem
 - Testes ampliados para autenticação, validação, JWT, RBAC, Prometheus e rate limiting.
 - Evidências renomeadas de forma descritiva e vinculadas à rubrica.
 - Contexto de ativos, continuidade, ISO 27001, NIST CSF e Red/Blue Team incorporado ao documento consolidado.
+- API funcional original integrada; teste de fluxo e persistência criptografada incluído no pipeline.
 
 ## 7. Evidências de execução anexadas
 
 O conjunto visual da entrega está completo e inclui:
 
 1. GitHub Actions com todos os jobs e o gate final aprovados;
-2. build, nove testes e SBOM CycloneDX;
+2. build, dez testes e SBOM CycloneDX;
 3. CodeQL, Trivy SCA, Gitleaks, Trivy IaC e Trivy Container;
 4. target do Prometheus em estado `UP` e regras de alerta carregadas;
 5. dashboard Grafana com os valores coletados;
