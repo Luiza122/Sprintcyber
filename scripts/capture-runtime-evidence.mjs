@@ -22,6 +22,9 @@ const context = await browser.newContext({
   colorScheme: 'dark'
 });
 const page = await context.newPage();
+page.on('requestfailed', (request) => console.log('Browser request failed:', request.url(), request.failure()?.errorText));
+page.on('response', (response) => { if (response.status() >= 400) console.log('Browser HTTP:', response.status(), response.url()); });
+page.on('pageerror', (error) => console.log('Browser page error:', error.message));
 
 const baseStyle = `
   :root { color-scheme: dark; }
@@ -102,6 +105,7 @@ if (!grafanaLogin.ok()) {
 await page.goto('http://127.0.0.1:3000/d/fordretain-security/fordretain-security?orgId=1&from=now-15m&to=now', { waitUntil: 'domcontentloaded' });
 console.log('Grafana URL:', page.url(), 'title:', await page.title());
 console.log('Grafana visible text:', (await page.locator('body').innerText()).slice(0, 900));
+console.log('Grafana scripts:', await page.locator('script[src]').evaluateAll((scripts) => scripts.map((script) => script.src).slice(0, 12)));
 await page.getByText('FordRetain - Segurança e Observabilidade').first().waitFor({ state: 'visible', timeout: 30000 });
 await page.getByText('Falhas de login (10m)').first().waitFor({ state: 'visible', timeout: 30000 });
 await page.waitForTimeout(5000);
