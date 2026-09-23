@@ -102,14 +102,17 @@ const grafanaLogin = await page.request.post('http://127.0.0.1:3000/login', {
 if (!grafanaLogin.ok()) {
   throw new Error(`Falha no login do Grafana: HTTP ${grafanaLogin.status()}`);
 }
-await page.goto('http://127.0.0.1:3000/d/fordretain-security/fordretain-security?orgId=1&from=now-15m&to=now', { waitUntil: 'domcontentloaded' });
-console.log('Grafana URL:', page.url(), 'title:', await page.title());
-console.log('Grafana visible text:', (await page.locator('body').innerText()).slice(0, 900));
-console.log('Grafana scripts:', await page.locator('script[src]').evaluateAll((scripts) => scripts.map((script) => script.src).slice(0, 12)));
-await page.getByText('FordRetain - Segurança e Observabilidade').first().waitFor({ state: 'visible', timeout: 30000 });
-await page.getByText('Falhas de login (10m)').first().waitFor({ state: 'visible', timeout: 30000 });
-await page.waitForTimeout(5000);
-await page.screenshot({ path: `${outputDirectory}/09-grafana-dashboard.png`, fullPage: true });
+const grafanaPage = await context.newPage();
+grafanaPage.on('console', (message) => { if (message.type() === 'error') console.log('Grafana console:', message.text()); });
+grafanaPage.on('pageerror', (error) => console.log('Grafana JS:', error.message));
+await grafanaPage.goto('http://127.0.0.1:3000/d/fordretain-security/fordretain-security?orgId=1&from=now-15m&to=now', { waitUntil: 'load' });
+console.log('Grafana URL:', grafanaPage.url(), 'title:', await grafanaPage.title());
+console.log('Grafana visible text:', (await grafanaPage.locator('body').innerText()).slice(0, 900));
+console.log('Grafana boot data:', await grafanaPage.evaluate(() => Boolean(window.grafanaBootData)));
+await grafanaPage.getByText('FordRetain - Segurança e Observabilidade').first().waitFor({ state: 'visible', timeout: 30000 });
+await grafanaPage.getByText('Falhas de login (10m)').first().waitFor({ state: 'visible', timeout: 30000 });
+await grafanaPage.waitForTimeout(5000);
+await grafanaPage.screenshot({ path: `${outputDirectory}/09-grafana-dashboard.png`, fullPage: true });
 
 const targetPayload = JSON.parse(await read('prometheus-targets.json'));
 const target = targetPayload.data.activeTargets.find((item) => item.labels.job === 'fordretain-api');
