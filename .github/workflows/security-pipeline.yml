@@ -35,7 +35,7 @@ jobs:
 
       - name: Validar e publicar SBOM como evidência
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: fordretain-sbom-cyclonedx
           path: target/classes/META-INF/sbom/application.cdx.json
